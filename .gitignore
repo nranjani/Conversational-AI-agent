@@ -1,0 +1,7 @@
+credentials.json
+.env
+venv/
+__pycache__/
+tools/__pycache__/
+*.pyc
+.streamlit/
