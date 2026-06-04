@@ -53,7 +53,10 @@ def get_sheet():
         )
 
     client = gspread.authorize(creds)
-    sheet_name = os.getenv("SHEET_NAME")
+    try:
+      sheet_name = st.secrets["SHEET_NAME"]
+    except Exception:
+     sheet_name = os.getenv("SHEET_NAME")
     return client.open(sheet_name)
 
 def is_office_open() -> bool:

@@ -6,6 +6,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 import os
 
+import streamlit as st
 load_dotenv()
 
 def get_sheet():
@@ -28,7 +29,10 @@ def get_sheet():
     )
     
     client = gspread.authorize(creds)
-    sheet_name = os.getenv("SHEET_NAME")
+    try:
+     sheet_name = st.secrets["SHEET_NAME"]
+    except Exception:
+     sheet_name = os.getenv("SHEET_NAME")
     print(f"Connecting to sheet: {sheet_name}")
     
     return client.open(sheet_name)

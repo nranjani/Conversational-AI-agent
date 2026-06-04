@@ -7,6 +7,7 @@ from google.oauth2.service_account import (
 )
 from dotenv import load_dotenv
 import os
+import streamlit as st
 
 load_dotenv()
 
@@ -149,9 +150,12 @@ def answer_faq(question: str) -> str:
         )
 
         client  = gspread.authorize(creds)
-        sheet   = client.open(
-            os.getenv("SHEET_NAME")
-        )
+        sheet   = client.open
+        try:
+             sheet_name = st.secrets["SHEET_NAME"]
+        except Exception:
+             sheet_name = os.getenv("SHEET_NAME")
+              
         faq_tab  = sheet.worksheet("FAQ")
         faq_data = faq_tab.get_all_records()
 
