@@ -26,6 +26,7 @@ def get_sheet():
     ]
 
     try:
+        # Streamlit Cloud secrets
         import streamlit as st
         creds_dict = dict(
             st.secrets["gcp_service_account"]
@@ -37,6 +38,7 @@ def get_sheet():
             )
         )
     except Exception:
+        # Local credentials.json
         base_dir = os.path.dirname(
             os.path.dirname(
                 os.path.abspath(__file__)
@@ -52,11 +54,15 @@ def get_sheet():
             )
         )
 
-    client = gspread.authorize(creds)
+    client     = gspread.authorize(creds)
+    
     try:
-      sheet_name = st.secrets["SHEET_NAME"]
+        import streamlit as st
+        sheet_name = st.secrets["SHEET_NAME"]
     except Exception:
-     sheet_name = os.getenv("SHEET_NAME")
+        sheet_name = os.getenv("SHEET_NAME")
+    
+    print(f"Connecting to sheet: {sheet_name}")
     return client.open(sheet_name)
 
 def is_office_open() -> bool:

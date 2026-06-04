@@ -110,6 +110,51 @@ def fix_prices(text: str) -> str:
         text
     )
     return text
+# ─── GET SHEET ───────────────────────────
+def get_sheet():
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    try:
+        # Streamlit Cloud secrets
+        import streamlit as st
+        creds_dict = dict(
+            st.secrets["gcp_service_account"]
+        )
+        creds = (
+            Credentials.from_service_account_info(
+                creds_dict,
+                scopes=scope
+            )
+        )
+    except Exception:
+        # Local credentials.json
+        base_dir = os.path.dirname(
+            os.path.dirname(
+                os.path.abspath(__file__)
+            )
+        )
+        creds_path = os.path.join(
+            base_dir, "credentials.json"
+        )
+        creds = (
+            Credentials.from_service_account_file(
+                creds_path,
+                scopes=scope
+            )
+        )
+
+    client = gspread.authorize(creds)
+
+    try:
+        import streamlit as st
+        sheet_name = st.secrets["SHEET_NAME"]
+    except Exception:
+        sheet_name = os.getenv("SHEET_NAME")
+
+    return client.open(sheet_name)
 # ─── GET INTENT ──────────────────────────
 def get_intent(question: str) -> str:
     question_lower = question.lower().strip()

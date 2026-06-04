@@ -14,27 +14,45 @@ def get_sheet():
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive"
     ]
-    
-    # Get the directory where booking_tool.py is
-    base_dir = os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))
-    )
-    creds_path = os.path.join(base_dir, "credentials.json")
-    
-    print(f"Looking for credentials at: {creds_path}")
-    
-    creds = Credentials.from_service_account_file(
-        creds_path, 
-        scopes=scope
-    )
-    
-    client = gspread.authorize(creds)
+
     try:
-     sheet_name = st.secrets["SHEET_NAME"]
+        # Streamlit Cloud secrets
+        import streamlit as st
+        creds_dict = dict(
+            st.secrets["gcp_service_account"]
+        )
+        creds = (
+            Credentials.from_service_account_info(
+                creds_dict,
+                scopes=scope
+            )
+        )
     except Exception:
-     sheet_name = os.getenv("SHEET_NAME")
-    print(f"Connecting to sheet: {sheet_name}")
+        # Local credentials.json
+        base_dir = os.path.dirname(
+            os.path.dirname(
+                os.path.abspath(__file__)
+            )
+        )
+        creds_path = os.path.join(
+            base_dir, "credentials.json"
+        )
+        creds = (
+            Credentials.from_service_account_file(
+                creds_path,
+                scopes=scope
+            )
+        )
+
+    client     = gspread.authorize(creds)
     
+    try:
+        import streamlit as st
+        sheet_name = st.secrets["SHEET_NAME"]
+    except Exception:
+        sheet_name = os.getenv("SHEET_NAME")
+    
+    print(f"Connecting to sheet: {sheet_name}")
     return client.open(sheet_name)
 
 
