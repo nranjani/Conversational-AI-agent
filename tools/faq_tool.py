@@ -117,20 +117,20 @@ def get_sheet():
         "https://www.googleapis.com/auth/drive"
     ]
 
-    try:
-        # Streamlit Cloud secrets
+    is_cloud = os.path.exists("/mount/src")
+
+    if is_cloud:
         import streamlit as st
-        creds_dict = dict(
-            st.secrets["gcp_service_account"]
-        )
         creds = (
             Credentials.from_service_account_info(
-                creds_dict,
+                dict(
+                    st.secrets["gcp_service_account"]
+                ),
                 scopes=scope
             )
         )
-    except Exception:
-        # Local credentials.json
+        sheet_name = st.secrets["SHEET_NAME"]
+    else:
         base_dir = os.path.dirname(
             os.path.dirname(
                 os.path.abspath(__file__)
@@ -145,15 +145,9 @@ def get_sheet():
                 scopes=scope
             )
         )
-
-    client = gspread.authorize(creds)
-
-    try:
-        import streamlit as st
-        sheet_name = st.secrets["SHEET_NAME"]
-    except Exception:
         sheet_name = os.getenv("SHEET_NAME")
 
+    client = gspread.authorize(creds)
     return client.open(sheet_name)
 # ─── GET INTENT ──────────────────────────
 def get_intent(question: str) -> str:
