@@ -4,9 +4,6 @@
 # 🤖 Omnichannel Conversational AI Automation Platform
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://conversational-ai-agent-uj3hvlnpvewonwm48kyvy6.streamlit.app/)
-
-## 🚀 Live Demo
-[Click here to view live dashboard](https://conversational-ai-agent-uj3hvlnpvewonwm48kyvy6.streamlit.app/)
  
 ---
 
