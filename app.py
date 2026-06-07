@@ -2,7 +2,7 @@ import streamlit as st
 from agent import create_agent
 
 st.set_page_config(
-    page_title="Paw Connect AI",
+    page_title="Conversational AI Agent",
     page_icon="🐾",
     layout="centered"
 )
@@ -20,7 +20,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🐾 Paw Connect AI")
+st.title("Conversational AI Agent")
 st.caption(
     "PlayStayTion Pet Resort — "
     "Available 24/7 for bookings "
