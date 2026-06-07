@@ -29,6 +29,11 @@ INTENT_KEYWORDS = {
     ],
     "FAQ_Grooming_Services": [
         "what grooming services",
+        "list your grooming",
+        "list grooming services",
+        "grooming services list",
+        "grooming includes",         
+        "what is included in grooming",
         "do you offer grooming",
         "do you groom",
         "full grooming",

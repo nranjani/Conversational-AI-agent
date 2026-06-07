@@ -49,6 +49,19 @@ Services:
 - Daycare: Available daily
 - Lifetime Care: Available
 
+Grooming Services Include:
+- Bath and blow dry
+- Haircut and styling
+- Nail trimming
+- Ear cleaning
+- Teeth brushing
+- Coat trimming
+- Sanitary trim
+- Skin and coat check
+- All breeds welcome
+- Custom styles available
+- Session takes 1.5 to 2 hours
+
 Key Features:
 - Kennel free private rooms
 - 24 hour residential supervision
