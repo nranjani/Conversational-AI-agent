@@ -113,6 +113,35 @@ Rules:
 - Always offer to help further
 - For receptionist use RECEPTIONIST_CHECK
 - Collect name phone query after hours
+CANCEL/RESCHEDULE INSTRUCTIONS:
+
+When customer wants to cancel:
+1. Ask for phone number and pet name
+2. Ask for booking date
+3. Respond with:
+   CANCEL: phone_number, pet_name, date
+4. If system shows multiple services
+   ask which service to cancel
+5. Then respond with:
+   CANCEL: phone_number, pet_name,
+           date, service_type
+6. After cancellation ask:
+   "Would you like to reschedule?"
+7. If yes collect new date and time
+   respond with:
+   REBOOK: phone_number, pet_name,
+           old_date, new_date,
+           new_time, service_type
+
+When customer wants to reschedule:
+1. Ask phone number and pet name
+2. Ask current booking date
+3. If multiple services ask which one
+4. Ask new date and time
+5. Respond with:
+   RESCHEDULE: phone_number, pet_name,
+               old_date, new_date,
+               new_time, service_type
 """
 
 def extract_booking(text):
@@ -224,7 +253,153 @@ def create_agent():
                     "content": final_reply
                 })
                 return final_reply
+        # ─── CANCEL CHECK ────────────────────────
+        if "CANCEL:" in reply:
+            pattern_with_service = (
+                r"CANCEL:\s*([^,]+),\s*"
+                r"([^,]+),\s*([^,]+),\s*(.+)"
+            )
+            pattern_no_service = (
+                r"CANCEL:\s*([^,]+),\s*"
+                r"([^,]+),\s*([^\n,]+)"
+            )
 
+            match = re.search(
+                pattern_with_service, reply
+            )
+
+            if match:
+                from tools.booking_tool import (
+                    cancel_booking
+                )
+                result = cancel_booking(
+                    match.group(1).strip(),
+                    match.group(2).strip(),
+                    match.group(3).strip(),
+                    match.group(4).strip()
+                )
+            else:
+                match = re.search(
+                    pattern_no_service, reply
+                )
+                if match:
+                    from tools.booking_tool import (
+                        cancel_booking
+                    )
+                    result = cancel_booking(
+                        match.group(1).strip(),
+                        match.group(2).strip(),
+                        match.group(3).strip()
+                    )
+                else:
+                    result = (
+                        "Could not process "
+                        "cancellation."
+                    )
+
+            if "MULTIPLE_SERVICES:" in result:
+                clean_result = result.replace(
+                    "MULTIPLE_SERVICES: ", ""
+                )
+                history.append({
+                    "role": "assistant",
+                    "content": clean_result
+                })
+                return clean_result
+
+            clean_reply = re.sub(
+                r"CANCEL:.*", "", reply
+            ).strip()
+
+            final_reply = (
+                f"{clean_reply}\n\n{result}"
+                if clean_reply
+                else result
+            )
+
+            history.append({
+                "role": "assistant",
+                "content": final_reply
+            })
+            return final_reply
+
+        # ─── REBOOK CHECK ────────────────────────
+        if "REBOOK:" in reply:
+            pattern = (
+                r"REBOOK:\s*([^,]+),\s*"
+                r"([^,]+),\s*([^,]+),\s*"
+                r"([^,]+),\s*([^,\n]+)"
+                r"(?:,\s*(.+))?"
+            )
+            match = re.search(pattern, reply)
+            if match:
+                from tools.booking_tool import (
+                    rebook_appointment
+                )
+                result = rebook_appointment(
+                    match.group(1).strip(),
+                    match.group(2).strip(),
+                    match.group(3).strip(),
+                    match.group(4).strip(),
+                    match.group(5).strip(),
+                    match.group(6).strip()
+                    if match.group(6) else None
+                )
+
+                clean_reply = re.sub(
+                    r"REBOOK:.*", "", reply
+                ).strip()
+
+                final_reply = (
+                    f"{clean_reply}\n\n{result}"
+                    if clean_reply
+                    else result
+                )
+
+                history.append({
+                    "role": "assistant",
+                    "content": final_reply
+                })
+                return final_reply
+
+        # ─── RESCHEDULE CHECK ────────────────────
+        if "RESCHEDULE:" in reply:
+            pattern = (
+                r"RESCHEDULE:\s*([^,]+),\s*"
+                r"([^,]+),\s*([^,]+),\s*"
+                r"([^,]+),\s*([^,\n]+)"
+                r"(?:,\s*(.+))?"
+            )
+            match = re.search(pattern, reply)
+            if match:
+                from tools.booking_tool import (
+                    rebook_appointment
+                )
+                result = rebook_appointment(
+                    match.group(1).strip(),
+                    match.group(2).strip(),
+                    match.group(3).strip(),
+                    match.group(4).strip(),
+                    match.group(5).strip(),
+                    match.group(6).strip()
+                    if match.group(6) else None
+                )
+
+                clean_reply = re.sub(
+                    r"RESCHEDULE:.*", "", reply
+                ).strip()
+
+                final_reply = (
+                    f"{clean_reply}\n\n{result}"
+                    if clean_reply
+                    else result
+                )
+
+                history.append({
+                    "role": "assistant",
+                    "content": final_reply
+                })
+                return final_reply
         # ─── BOOKING CHECK ────────────────
         booking_details = extract_booking(reply)
         if booking_details:
