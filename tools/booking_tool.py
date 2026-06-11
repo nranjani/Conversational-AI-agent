@@ -7,7 +7,8 @@ from google.oauth2.service_account import (
 from datetime import datetime
 from dotenv import load_dotenv
 import os
-
+from datetime import datetime, timedelta
+import re
 load_dotenv()
 
 def get_credentials():
@@ -60,6 +61,87 @@ def get_sheet():
     print(f"Connecting to: {sheet_name}")
     return client.open(sheet_name)
 
+
+
+def format_date(date_str: str) -> str:
+    """
+    Convert natural language date
+    to formatted date string
+    """
+    date_str = date_str.strip().lower()
+    today = datetime.now()
+
+    # Handle relative dates
+    if date_str == "today":
+        return today.strftime("%Y-%m-%d")
+
+    if date_str == "tomorrow":
+        return (
+            today + timedelta(days=1)
+        ).strftime("%Y-%m-%d")
+
+    # Handle day names
+    days = {
+        "monday": 0, "tuesday": 1,
+        "wednesday": 2, "thursday": 3,
+        "friday": 4, "saturday": 5,
+        "sunday": 6
+    }
+    for day, day_num in days.items():
+        if day in date_str:
+            current_day = today.weekday()
+            days_ahead = (
+                day_num - current_day
+            ) % 7
+            if days_ahead == 0:
+                days_ahead = 7
+            target = (
+                today + timedelta(
+                    days=days_ahead
+                )
+            )
+            return target.strftime("%Y-%m-%d")
+
+    # Handle formats like "6th June"
+    # "June 6" "06/06/2025"
+    formats = [
+        "%d %B %Y",      # 06 June 2025
+        "%B %d %Y",      # June 06 2025
+        "%d/%m/%Y",      # 06/06/2025
+        "%m/%d/%Y",      # 06/06/2025
+        "%Y-%m-%d",      # 2025-06-06
+        "%d %B",         # 6 June
+        "%B %d",         # June 6
+        "%dth %B",       # 6th June
+        "%dst %B",       # 1st June
+        "%dnd %B",       # 2nd June
+        "%drd %B",       # 3rd June
+    ]
+
+    # Clean ordinal suffixes
+    clean_date = re.sub(
+        r'(\d+)(st|nd|rd|th)',
+        r'\1',
+        date_str.title()
+    )
+
+    for fmt in formats:
+        try:
+            parsed = datetime.strptime(
+                clean_date, fmt
+            )
+            # Add current year if missing
+            if parsed.year == 1900:
+                parsed = parsed.replace(
+                    year=today.year
+                )
+            return parsed.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+
+    # Return as is if cannot parse
+    return date_str
+
 def book_appointment(details: str) -> str:
     try:
         parts = [
@@ -77,7 +159,7 @@ def book_appointment(details: str) -> str:
 
         pet_name     = parts[0]
         service_type = parts[1]
-        date         = parts[2]
+        date         = format_date(parts[2])
         time         = parts[3]
         phone_number = parts[4]
         timestamp    = datetime.now().strftime(
