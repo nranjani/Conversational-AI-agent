@@ -118,7 +118,7 @@ def book_appointment(details: str) -> str:
             f"Error Type: {type(e).__name__} "
             f"Error: {str(e)}"
         )
- def cancel_booking(
+def cancel_booking(
     phone_number: str,
     pet_name: str,
     booking_date: str,
