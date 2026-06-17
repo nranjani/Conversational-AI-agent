@@ -177,7 +177,7 @@ st.markdown("""
            class="call-btn">
            📞 Call Us
         </a>
-        <a href="https://vapi.ai/talk/972d86e7-b499-4e3d-a013-06648c2d4e7f?key=a8210a46-6c59-450b-bdab-34eb816d7e2b"
+        <a href="https://vapi.ai?demo=true&shareKey=a8210a46-6c59-450b-bdab-34eb816d7e2b&assistantId=972d86e7-b499-4e3d-a013-06648c2d4e7f"
            target="_blank"
            class="vapi-btn">
            🎤 Talk to AI
