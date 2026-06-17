@@ -132,55 +132,29 @@ if prompt := st.chat_input(
 
 
 # ─── VAPI VOICE WIDGET ───────────────────
+# ─── VAPI VOICE WIDGET ───────────────────
 st.markdown("""
-    <script>
-      var vapiInstance = null;
-      const assistant = "972d86e7-b499-4e3d-a013-06648c2d4e7f";
-      const apiKey = "a8210a46-6c59-450b-bdab-34eb816d7e2b";
-      const buttonConfig = {
-        position: "bottom-right",
-        offset: "40px",
-        width: "60px",
-        height: "60px",
-        idle: {
-          color: "rgb(93, 254, 202)",
-          type: "pill",
-          title: "🎤 Talk to AI",
-          subtitle: "Click to speak",
-          icon: "https://unpkg.com/lucide-static@0.321.0/icons/phone.svg",
-        },
-        loading: {
-          color: "rgb(93, 124, 202)",
-          type: "pill",
-          title: "Connecting...",
-          subtitle: "Please wait",
-          icon: "https://unpkg.com/lucide-static@0.321.0/icons/loader-2.svg",
-        },
-        active: {
-          color: "rgb(255, 0, 0)",
-          type: "pill",
-          title: "🎤 Speaking",
-          subtitle: "Click to end",
-          icon: "https://unpkg.com/lucide-static@0.321.0/icons/phone-off.svg",
-        },
-      };
+    <style>
+    /* Vapi button styling */
+    .vapi-btn-container {
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        z-index: 999999;
+    }
+    </style>
 
-      (function (d, t) {
-        var g = document.createElement(t),
-          s = d.getElementsByTagName(t)[0];
-        g.src =
-          "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
-        g.defer = true;
-        g.async = true;
-        s.parentNode.insertBefore(g, s);
-
-        g.onload = function () {
-          vapiInstance = window.vapiSDK.run({
-            apiKey: apiKey,
-            assistant: assistant,
-            config: buttonConfig,
-          });
-        };
-      })(document, "script");
-    </script>
+    <div class="vapi-btn-container">
+        <iframe
+            id="vapi-widget"
+            src="https://vapi.ai/widget?key=a8210a46-6c59-450b-bdab-34eb816d7e2b&assistant=972d86e7-b499-4e3d-a013-06648c2d4e7f"
+            allow="microphone"
+            style="
+                border: none;
+                width: 200px;
+                height: 60px;
+                border-radius: 30px;
+            "
+        ></iframe>
+    </div>
 """, unsafe_allow_html=True)
