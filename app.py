@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from agent import create_agent
 
 st.set_page_config(
@@ -132,29 +133,75 @@ if prompt := st.chat_input(
 
 
 # ─── VAPI VOICE WIDGET ───────────────────
-# ─── VAPI VOICE WIDGET ───────────────────
-st.markdown("""
-    <style>
-    /* Vapi button styling */
-    .vapi-btn-container {
-        position: fixed;
-        bottom: 80px;
-        right: 20px;
-        z-index: 999999;
-    }
-    </style>
 
-    <div class="vapi-btn-container">
-        <iframe
-            id="vapi-widget"
-            src="https://vapi.ai/widget?key=a8210a46-6c59-450b-bdab-34eb816d7e2b&assistant=972d86e7-b499-4e3d-a013-06648c2d4e7f"
-            allow="microphone"
-            style="
-                border: none;
-                width: 200px;
-                height: 60px;
-                border-radius: 30px;
-            "
-        ></iframe>
-    </div>
-""", unsafe_allow_html=True)
+
+components.html(
+    """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                background: transparent;
+            }
+            #vapi-container {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 999999;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="vapi-container"></div>
+        <script>
+        (function (d, t) {
+            var g = document.createElement(t),
+                s = d.getElementsByTagName(t)[0];
+            g.src = "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
+            g.defer = true;
+            g.async = true;
+            s.parentNode.insertBefore(g, s);
+            g.onload = function () {
+                window.vapiSDK.run({
+                    apiKey: "a8210a46-6c59-450b-bdab-34eb816d7e2b",
+                    assistant: "972d86e7-b499-4e3d-a013-06648c2d4e7f",
+                    config: {
+                        position: "bottom-right",
+                        offset: "20px",
+                        width: "60px",
+                        height: "60px",
+                        idle: {
+                            color: "#25D366",
+                            type: "pill",
+                            title: "Talk to AI",
+                            subtitle: "Click to speak",
+                            icon: "https://unpkg.com/lucide-static@0.321.0/icons/phone.svg",
+                        },
+                        loading: {
+                            color: "#4A90D9",
+                            type: "pill",
+                            title: "Connecting",
+                            subtitle: "Please wait",
+                            icon: "https://unpkg.com/lucide-static@0.321.0/icons/loader-2.svg",
+                        },
+                        active: {
+                            color: "#FF4444",
+                            type: "pill",
+                            title: "Speaking",
+                            subtitle: "Click to end",
+                            icon: "https://unpkg.com/lucide-static@0.321.0/icons/phone-off.svg",
+                        },
+                    },
+                });
+            };
+        })(document, "script");
+        </script>
+    </body>
+    </html>
+    """,
+    height=120,
+    scrolling=False
+)
