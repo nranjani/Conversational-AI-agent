@@ -167,9 +167,59 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         text-align: center;
         display: block;
+        cursor: pointer;
+        border: none;
     }
     .call-btn:hover { background: #128C7E; }
     .vapi-btn:hover { background: #357ABD; }
+    
+    /* Modal overlay */
+    .vapi-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        z-index: 9999999;
+        justify-content: center;
+        align-items: center;
+    }
+    .vapi-modal.active {
+        display: flex;
+    }
+    .vapi-modal-content {
+        background: white;
+        border-radius: 15px;
+        width: 90%;
+        max-width: 500px;
+        height: 80vh;
+        position: relative;
+        overflow: hidden;
+    }
+    .vapi-modal-close {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 24px;
+        cursor: pointer;
+        z-index: 99999999;
+        background: rgba(0,0,0,0.5);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .vapi-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
     </style>
 
     <div class="btn-container">
@@ -177,10 +227,43 @@ st.markdown("""
            class="call-btn">
            📞 Call Us
         </a>
-        <a href="https://vapi.ai?demo=true&shareKey=a8210a46-6c59-450b-bdab-34eb816d7e2b&assistantId=972d86e7-b499-4e3d-a013-06648c2d4e7f"
-           target="_blank"
-           class="vapi-btn">
+        <button 
+            class="vapi-btn"
+            onclick="openVapi()">
            🎤 Talk to AI
-        </a>
+        </button>
     </div>
+
+    <!-- Vapi Modal -->
+    <div class="vapi-modal" id="vapiModal">
+        <div class="vapi-modal-content">
+            <button 
+                class="vapi-modal-close"
+                onclick="closeVapi()">
+                ✕
+            </button>
+            <iframe
+                id="vapiFrame"
+                class="vapi-iframe"
+                src=""
+                allow="microphone; camera"
+                allowfullscreen>
+            </iframe>
+        </div>
+    </div>
+
+    <script>
+    function openVapi() {
+        var modal = document.getElementById('vapiModal');
+        var frame = document.getElementById('vapiFrame');
+        frame.src = "https://vapi.ai?demo=true&shareKey=a8210a46-6c59-450b-bdab-34eb816d7e2b&assistantId=972d86e7-b499-4e3d-a013-06648c2d4e7f";
+        modal.classList.add('active');
+    }
+    function closeVapi() {
+        var modal = document.getElementById('vapiModal');
+        var frame = document.getElementById('vapiFrame');
+        frame.src = "";
+        modal.classList.remove('active');
+    }
+    </script>
 """, unsafe_allow_html=True)
