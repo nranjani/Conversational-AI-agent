@@ -132,76 +132,55 @@ if prompt := st.chat_input(
     })
 
 
-# ─── VAPI VOICE WIDGET ───────────────────
+# ─── VOICE AND CALL BUTTONS ──────────────
+st.markdown("""
+    <style>
+    .btn-container {
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        z-index: 999999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .call-btn {
+        background: #25D366;
+        color: white;
+        padding: 12px 18px;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 14px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        text-align: center;
+        display: block;
+    }
+    .vapi-btn {
+        background: #4A90D9;
+        color: white;
+        padding: 12px 18px;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 14px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        text-align: center;
+        display: block;
+    }
+    .call-btn:hover { background: #128C7E; }
+    .vapi-btn:hover { background: #357ABD; }
+    </style>
 
-
-components.html(
-    """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {
-                margin: 0;
-                padding: 0;
-                background: transparent;
-            }
-            #vapi-container {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                z-index: 999999;
-            }
-        </style>
-    </head>
-    <body>
-        <div id="vapi-container"></div>
-        <script>
-        (function (d, t) {
-            var g = document.createElement(t),
-                s = d.getElementsByTagName(t)[0];
-            g.src = "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
-            g.defer = true;
-            g.async = true;
-            s.parentNode.insertBefore(g, s);
-            g.onload = function () {
-                window.vapiSDK.run({
-                    apiKey: "a8210a46-6c59-450b-bdab-34eb816d7e2b",
-                    assistant: "972d86e7-b499-4e3d-a013-06648c2d4e7f",
-                    config: {
-                        position: "bottom-right",
-                        offset: "20px",
-                        width: "60px",
-                        height: "60px",
-                        idle: {
-                            color: "#25D366",
-                            type: "pill",
-                            title: "Talk to AI",
-                            subtitle: "Click to speak",
-                            icon: "https://unpkg.com/lucide-static@0.321.0/icons/phone.svg",
-                        },
-                        loading: {
-                            color: "#4A90D9",
-                            type: "pill",
-                            title: "Connecting",
-                            subtitle: "Please wait",
-                            icon: "https://unpkg.com/lucide-static@0.321.0/icons/loader-2.svg",
-                        },
-                        active: {
-                            color: "#FF4444",
-                            type: "pill",
-                            title: "Speaking",
-                            subtitle: "Click to end",
-                            icon: "https://unpkg.com/lucide-static@0.321.0/icons/phone-off.svg",
-                        },
-                    },
-                });
-            };
-        })(document, "script");
-        </script>
-    </body>
-    </html>
-    """,
-    height=120,
-    scrolling=False
-)
+    <div class="btn-container">
+        <a href="tel:+19032074408"
+           class="call-btn">
+           📞 Call Us
+        </a>
+        <a href="https://vapi.ai/demo?assistant=972d86e7-b499-4e3d-a013-06648c2d4e7f"
+           target="_blank"
+           class="vapi-btn">
+           🎤 Talk to AI
+        </a>
+    </div>
+""", unsafe_allow_html=True)
