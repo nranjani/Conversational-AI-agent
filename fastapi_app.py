@@ -104,3 +104,7 @@ async def chat_endpoint(request: Request):
 @app.post("/chat/completions")
 async def chat_completions(request: Request):
     return await chat_endpoint(request)
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
