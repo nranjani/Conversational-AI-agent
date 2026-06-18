@@ -15,6 +15,7 @@ import re
 
 load_dotenv(override=True)
 
+# ─── GET GROQ API KEY ────────────────────
 try:
     import streamlit as st
     groq_key = st.secrets["GROQ_API_KEY"]
@@ -28,9 +29,8 @@ client = OpenAI(
 )
 
 SYSTEM_MESSAGE = """
-You are Paw Connect AI, a friendly and
-professional receptionist for PlayStayTion
-Pet Resort in Sadler Texas.
+You are a Conversational AI Agent for
+PlayStayTion Pet Resort in Sadler Texas.
 
 Contact Info:
 Phone: 903-207-4408
@@ -48,19 +48,6 @@ Services:
 - Training: Positive reinforcement
 - Daycare: Available daily
 - Lifetime Care: Available
-
-Grooming Services Include:
-- Bath and blow dry
-- Haircut and styling
-- Nail trimming
-- Ear cleaning
-- Teeth brushing
-- Coat trimming
-- Sanitary trim
-- Skin and coat check
-- All breeds welcome
-- Custom styles available
-- Session takes 1.5 to 2 hours
 
 Key Features:
 - Kennel free private rooms
@@ -84,6 +71,19 @@ Must have current vaccinations
 
 Check in: 3pm Check out: noon
 
+Grooming Services Include:
+- Full bath and blow dry
+- Haircut and styling
+- Nail trimming and filing
+- Ear cleaning
+- Teeth brushing
+- Coat trimming
+- Sanitary trim
+- Skin and coat check
+- All breeds welcome
+- Custom styles available
+- Session takes 1.5 to 2 hours
+
 BOOKING INSTRUCTIONS:
 When customer wants to book:
 1. Collect pet name, service,
@@ -94,27 +94,20 @@ When customer wants to book:
 3. Then confirm the booking
 
 RECEPTIONIST INSTRUCTIONS:
-When customer wants to talk to receptionist
-or speak to a human or staff:
-1. Respond with exactly:
-   RECEPTIONIST_CHECK
-2. System will check office hours
+When customer EXPLICITLY says:
+- talk to receptionist
+- speak to human
+- talk to staff
+- speak to someone
+- talk to a person
+ONLY THEN respond with: RECEPTIONIST_CHECK
 
 When customer provides their details
 after being told office is closed
 respond with exactly:
 RECEPTIONIST_LOG: name, phone, query
 
-Rules:
-- Be warm and friendly always
-- Keep responses short and clear
-- Always use $ for prices not backticks
-- Never use markdown backticks for prices
-- Always offer to help further
-- For receptionist use RECEPTIONIST_CHECK
-- Collect name phone query after hours
 CANCEL/RESCHEDULE INSTRUCTIONS:
-
 When customer wants to cancel:
 1. Ask for phone number and pet name
 2. Ask for booking date
@@ -126,7 +119,7 @@ When customer wants to cancel:
    CANCEL: phone_number, pet_name,
            date, service_type
 6. After cancellation ask:
-   "Would you like to reschedule?"
+   Would you like to reschedule?
 7. If yes collect new date and time
    respond with:
    REBOOK: phone_number, pet_name,
@@ -142,6 +135,15 @@ When customer wants to reschedule:
    RESCHEDULE: phone_number, pet_name,
                old_date, new_date,
                new_time, service_type
+
+Rules:
+- Be warm and friendly always
+- Keep responses short and clear
+- Always use $ for prices not backticks
+- Never use markdown backticks for prices
+- Always offer to help further
+- For receptionist use RECEPTIONIST_CHECK
+- Collect name phone query after hours
 """
 
 def extract_booking(text):
@@ -168,7 +170,7 @@ def create_agent():
         }
     ]
 
-    def chat(user_message):
+    def chat(user_message: str) -> str:
         history.append({
             "role": "user",
             "content": user_message
@@ -209,7 +211,6 @@ def create_agent():
         # ─── RECEPTIONIST CHECK ───────────
         if "RECEPTIONIST_CHECK" in reply:
             result = check_receptionist()
-
             if "OFFICE_OPEN" in result:
                 final_reply = result.replace(
                     "OFFICE_OPEN: ", ""
@@ -218,7 +219,6 @@ def create_agent():
                 final_reply = result.replace(
                     "OFFICE_CLOSED: ", ""
                 )
-
             history.append({
                 "role": "assistant",
                 "content": final_reply
@@ -253,7 +253,8 @@ def create_agent():
                     "content": final_reply
                 })
                 return final_reply
-        # ─── CANCEL CHECK ────────────────────────
+
+        # ─── CANCEL CHECK ────────────────
         if "CANCEL:" in reply:
             pattern_with_service = (
                 r"CANCEL:\s*([^,]+),\s*"
@@ -263,11 +264,9 @@ def create_agent():
                 r"CANCEL:\s*([^,]+),\s*"
                 r"([^,]+),\s*([^\n,]+)"
             )
-
             match = re.search(
                 pattern_with_service, reply
             )
-
             if match:
                 from tools.booking_tool import (
                     cancel_booking
@@ -310,20 +309,18 @@ def create_agent():
             clean_reply = re.sub(
                 r"CANCEL:.*", "", reply
             ).strip()
-
             final_reply = (
                 f"{clean_reply}\n\n{result}"
                 if clean_reply
                 else result
             )
-
             history.append({
                 "role": "assistant",
                 "content": final_reply
             })
             return final_reply
 
-        # ─── REBOOK CHECK ────────────────────────
+        # ─── REBOOK CHECK ────────────────
         if "REBOOK:" in reply:
             pattern = (
                 r"REBOOK:\s*([^,]+),\s*"
@@ -345,24 +342,21 @@ def create_agent():
                     match.group(6).strip()
                     if match.group(6) else None
                 )
-
                 clean_reply = re.sub(
                     r"REBOOK:.*", "", reply
                 ).strip()
-
                 final_reply = (
                     f"{clean_reply}\n\n{result}"
                     if clean_reply
                     else result
                 )
-
                 history.append({
                     "role": "assistant",
                     "content": final_reply
                 })
                 return final_reply
 
-        # ─── RESCHEDULE CHECK ────────────────────
+        # ─── RESCHEDULE CHECK ────────────
         if "RESCHEDULE:" in reply:
             pattern = (
                 r"RESCHEDULE:\s*([^,]+),\s*"
@@ -384,22 +378,20 @@ def create_agent():
                     match.group(6).strip()
                     if match.group(6) else None
                 )
-
                 clean_reply = re.sub(
                     r"RESCHEDULE:.*", "", reply
                 ).strip()
-
                 final_reply = (
                     f"{clean_reply}\n\n{result}"
                     if clean_reply
                     else result
                 )
-
                 history.append({
                     "role": "assistant",
                     "content": final_reply
                 })
                 return final_reply
+
         # ─── BOOKING CHECK ────────────────
         booking_details = extract_booking(reply)
         if booking_details:

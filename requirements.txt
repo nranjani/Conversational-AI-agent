@@ -1,3 +1,6 @@
+langchain
+langchain-groq
+langchain-community
 openai
 httpx
 gspread
@@ -5,3 +8,5 @@ google-auth
 streamlit
 python-dotenv
 pytz
+fastapi
+uvicorn
