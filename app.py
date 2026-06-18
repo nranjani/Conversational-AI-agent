@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 from agent import create_agent
 
 st.set_page_config(
@@ -132,55 +131,3 @@ if prompt := st.chat_input(
     })
 
 
-# ─── VOICE BUTTONS ───────────────────────
-st.markdown("""
-    <style>
-    .btn-container {
-        position: fixed;
-        bottom: 80px;
-        right: 20px;
-        z-index: 999999;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-    .call-btn {
-        background: #25D366;
-        color: white;
-        padding: 12px 18px;
-        border-radius: 50px;
-        text-decoration: none;
-        font-weight: bold;
-        font-size: 14px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        text-align: center;
-        display: block;
-    }
-    .vapi-btn {
-        background: #4A90D9;
-        color: white;
-        padding: 12px 18px;
-        border-radius: 50px;
-        text-decoration: none;
-        font-weight: bold;
-        font-size: 14px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        text-align: center;
-        display: block;
-    }
-    .call-btn:hover { background: #128C7E; }
-    .vapi-btn:hover { background: #357ABD; }
-    </style>
-
-    <div class="btn-container">
-        <a href="tel:+19032074408"
-           class="call-btn">
-           📞 Call Us
-        </a>
-        <a href="https://vapi.ai?demo=true&shareKey=a8210a46-6c59-450b-bdab-34eb816d7e2b&assistantId=972d86e7-b499-4e3d-a013-06648c2d4e7f"
-           target="_blank"
-           class="vapi-btn">
-           🎤 Talk to AI
-        </a>
-    </div>
-""", unsafe_allow_html=True)
