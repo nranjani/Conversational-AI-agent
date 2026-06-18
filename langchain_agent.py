@@ -117,10 +117,6 @@ def process_message(
     user_message: str,
     conversation_history: list = None
 ) -> str:
-    """
-    Process message from Vapi
-    and return response
-    """
     if not conversation_history:
         conversation_history = []
 
@@ -131,30 +127,32 @@ def process_message(
         }
     ]
 
-    # Add conversation history
     messages.extend(conversation_history)
-
-    # Add current message
     messages.append({
         "role": "user",
         "content": user_message
     })
 
     try:
-        # Check FAQ first
-        faq_answer = answer_faq(user_message)
-        if (
-            faq_answer and
-            "don't have" not in faq_answer
-        ):
-            return faq_answer
+        # Try FAQ first
+        try:
+            faq_answer = answer_faq(user_message)
+            if (
+                faq_answer and
+                "don't have" not in faq_answer
+            ):
+                return faq_answer
+        except Exception as faq_err:
+            print(f"FAQ skipped: {faq_err}")
 
         # Call Groq LLM
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            max_tokens=500,
-            temperature=0.7
+        response = (
+            client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=messages,
+                max_tokens=500,
+                temperature=0.7
+            )
         )
         reply = (
             response.choices[0].message.content
@@ -163,56 +161,66 @@ def process_message(
         # Check for booking
         booking_details = extract_booking(reply)
         if booking_details:
-            booking_result = book_appointment(
-                booking_details
-            )
-            send_email_notification(
-                booking_details
-            )
-            clean_reply = re.sub(
-                r"BOOK:.*", "", reply
-            ).strip()
-            return (
-                f"{clean_reply}\n\n"
-                f"{booking_result}"
-                if clean_reply
-                else booking_result
-            )
+            try:
+                booking_result = book_appointment(
+                    booking_details
+                )
+                send_email_notification(
+                    booking_details
+                )
+                clean_reply = re.sub(
+                    r"BOOK:.*", "", reply
+                ).strip()
+                return (
+                    f"{clean_reply}\n\n"
+                    f"{booking_result}"
+                    if clean_reply
+                    else booking_result
+                )
+            except Exception as book_err:
+                print(f"Booking error: {book_err}")
+                return reply
 
         # Check for receptionist
         if "RECEPTIONIST_CHECK" in reply:
-            result = check_receptionist()
-            if "OFFICE_OPEN" in result:
+            try:
+                result = check_receptionist()
+                if "OFFICE_OPEN" in result:
+                    return result.replace(
+                        "OFFICE_OPEN: ", ""
+                    )
                 return result.replace(
-                    "OFFICE_OPEN: ", ""
+                    "OFFICE_CLOSED: ", ""
                 )
-            return result.replace(
-                "OFFICE_CLOSED: ", ""
-            )
+            except Exception as rec_err:
+                print(f"Receptionist error: {rec_err}")
 
         # Check for receptionist log
         if "RECEPTIONIST_LOG:" in reply:
-            pattern = (
-                r"RECEPTIONIST_LOG:\s*"
-                r"([^,]+),\s*([^,]+),\s*(.+)"
-            )
-            match = re.search(pattern, reply)
-            if match:
-                result = log_receptionist_request(
-                    match.group(1).strip(),
-                    match.group(2).strip(),
-                    match.group(3).strip()
+            try:
+                pattern = (
+                    r"RECEPTIONIST_LOG:\s*"
+                    r"([^,]+),\s*([^,]+),\s*(.+)"
                 )
-                clean_reply = re.sub(
-                    r"RECEPTIONIST_LOG:.*",
-                    "",
-                    reply
-                ).strip()
-                return (
-                    f"{clean_reply}\n\n{result}"
-                    if clean_reply
-                    else result
-                )
+                match = re.search(pattern, reply)
+                if match:
+                    result = log_receptionist_request(
+                        match.group(1).strip(),
+                        match.group(2).strip(),
+                        match.group(3).strip()
+                    )
+                    clean_reply = re.sub(
+                        r"RECEPTIONIST_LOG:.*",
+                        "",
+                        reply
+                    ).strip()
+                    return (
+                        f"{clean_reply}\n\n{result}"
+                        if clean_reply
+                        else result
+                    )
+            except Exception as log_err:
+                print(f"Log error: {log_err}")
 
         return reply
 

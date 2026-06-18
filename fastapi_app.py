@@ -99,3 +99,8 @@ async def chat_endpoint(request: Request):
                 }
             }]
         }
+
+# ✅ NEW ENDPOINT FOR VAPI
+@app.post("/chat/completions")
+async def chat_completions(request: Request):
+    return await chat_endpoint(request)
