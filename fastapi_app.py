@@ -23,6 +23,10 @@ async def root():
         "status": "PawConnect AI running"
     }
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
 @app.post("/chat")
 async def chat_endpoint(request: Request):
     try:
@@ -105,6 +109,3 @@ async def chat_endpoint(request: Request):
 async def chat_completions(request: Request):
     return await chat_endpoint(request)
 
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
