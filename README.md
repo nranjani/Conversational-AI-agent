@@ -175,4 +175,5 @@ Conversational-AI-agent/
 - **Conversation memory is per session.** Chat history is lost when the page is refreshed.
 - **LLM answers outside the FAQ** are limited to the business facts in the system prompt, but they aren't verified against a source.
 
-**Roadmap:** switch to native tool calling, add automated tests for every intent, check capacity before booking, and add SMS or WhatsApp as a second channel.
+**Roadmap:** Website chat widget. Serve the agent through a FastAPI backend hosted on Render or Railway, and embed a chat bubble on the resort's own website instead of using a separate Streamlit page.
+switch to native tool calling, add automated tests for every intent, check capacity before booking, and add SMS or WhatsApp as a second channel.
