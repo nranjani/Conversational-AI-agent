@@ -1,161 +1,141 @@
-# 🐾 Omnichannel Conversational AI Agent
+# 🐾 Conversational AI Agent for Small Business
 
-> AI-powered 24/7 customer engagement system deployed for small businesses — eliminating missed calls, manual bookings, and after-hours service gaps.
-# 🤖 Omnichannel Conversational AI Automation Platform
+> A 24/7 AI receptionist deployed for a real pet resort. It answers questions, takes bookings, handles cancellations and reschedules, and captures after-hours requests.
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://conversational-ai-agent-uj3hvlnpvewonwm48kyvy6.streamlit.app/)
- 
+
 ---
 
 ## 📌 Overview
 
-This project is a **production-deployed agentic AI agent** built for a real small business — PlayStayTion Pet Resort in Sadler, Texas. The system handles customer queries, automates bookings, and provides 24/7 support through an intelligent conversational interface.
+Built for **PlayStayTion Pet Resort** in Sadler, Texas. Before this agent, the business had no way to respond after hours, and every booking was taken manually by phone.
 
-### Business Problems Solved:
-- ❌ Missed calls after hours
-- ❌ Manual booking process
-- ❌ No 24/7 customer support
-- ❌ After hours service gaps
-- ❌ High infrastructure costs
-
-### Solution:
-- ✅ 24/7 AI-powered chat interface
-- ✅ Automated booking intake
-- ✅ FAQ answering from live database
-- ✅ After hours receptionist
-- ✅ Zero infrastructure cost
+**What the agent does:**
+- Answers common questions about hours, pricing and services from a FAQ database
+- Takes bookings in conversation and saves them to PostgreSQL
+- Cancels and reschedules existing bookings
+- Collects contact details after hours so staff can call back
+- Emails the admin about every booking, change and after-hours request
 
 ---
 
 ## 🏗️ Architecture
+
+```
 Customer
-↓
-Streamlit Web Chat (24/7)
-↓
-Groq LLM (Llama 3.3 70B)
-↓
-┌─────────────────────────────┐
-│         Use Cases           │
-├─────────────────────────────┤
-│ 📅 Booking Intake           │
-│ ❓ FAQ Lookup               │
-│  After Hours Receptionist │
-│ 📞 Office Hours Check       │
-│ 🚨 Emergency Handling       │
-└─────────────────────────────┘
-↓
-┌─────────────────────────────┐
-│         Data Layer          │
-│ Google Sheets (booking)     │
-│ Google Sheets (FAQ)         │
-│ Google Sheets (receptionist)│
-└─────────────────────────────┘
-↓
-Gmail Notifications (admin)
+   ↓
+Streamlit web chat
+   ↓
+Agent (agent.py)
+   ├── FAQ match? ──► PostgreSQL faq table ──► answer
+   └── otherwise ──► Groq LLM (gpt-oss-120b)
+                        ↓ emits a structured command
+          ┌─────────────┼──────────────┬──────────────┐
+        BOOK:      CANCEL / REBOOK   RECEPTIONIST_CHECK / LOG
+          ↓             ↓                  ↓
+      bookings      bookings      receptionist_requests
+          └─────────────┴──────────────────┘
+                        ↓
+              Gmail notification to admin
+```
+
+The LLM never writes to the database directly. It replies with a structured command such as `BOOK: Max, Grooming, June 6, 10am, 5551234`. The agent parses that command and calls the matching Python tool, which validates the input and runs a parameterized SQL query.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Category | Technology |
-|---|---|
-| **AI/LLM** | Groq LLM (Llama 3.3 70B) |
-| **Backend** | Python 3.11 |
-| **Frontend** | Streamlit |
-| **Database** | Google Sheets API |
-| **Notifications** | Gmail API |
-| **Hosting** | Streamlit Cloud |
-| **Auth** | Google Service Account |
-| **Version Control** | GitHub |
+| Category       | Technology                          |
+| -------------- | ----------------------------------- |
+| LLM            | Groq (`openai/gpt-oss-120b`)        |
+| Backend        | Python 3.11                         |
+| Frontend       | Streamlit                           |
+| Database       | PostgreSQL (Supabase)               |
+| DB driver      | psycopg 3                           |
+| Notifications  | Gmail SMTP                          |
+| Hosting        | Streamlit Community Cloud           |
 
 ---
 
 ## ✨ Features
 
-### 1. 🤖 Intelligent Query Handling
-- Groq LLM (Llama 3.3 70B) as primary AI brain
-- FAQ sheet lookup for known questions
-- Automatic fallback to LLM for unknown queries
-- 100% query coverage 24/7
+### 1. FAQ answering
+- Keyword-based intent matching, then a scoring step that picks the best answer within the matched intent
+- FAQ content lives in the `faq` table, so the business can edit answers without touching code
+- Results are cached for 5 minutes to avoid querying the database on every message
+- Anything without a FAQ match goes to the LLM
 
-### 2. 📅 Automated Booking Intake
-- Conversational booking flow
-- Collects pet name, service, date, time, phone
-- Real time Google Sheets logging
-- Instant Gmail notification to admin
-- Zero missed bookings
+### 2. Booking
+- Collects pet name, service, date, time and phone number in conversation
+- Understands dates like "tomorrow", "Friday", "June 6" and "Apr 05, 2026", and stores them as real `DATE` values
+- Asks the customer to rephrase if a date can't be understood, so it never saves an unreadable date
 
-### 3. ❓ FAQ System
-- FAQ database stored in Google Sheets
-- Intent based matching
-- Covers hours, pricing, services, activities,
-  pickup, training, boarding, grooming
-- Easy to update without code changes
+### 3. Cancel and reschedule
+- Finds bookings by phone number, pet name and date
+- If the same date has several services, asks which one to change
+- Status is tracked as `confirmed`, `cancelled` or `rebooked`. Rows are never deleted, so the history is kept.
 
-### 4. 🌙 After Hours Receptionist
-- Checks office hours automatically
-- During hours: connects to staff
-- After hours: collects customer details
-- Logs to Google Sheets receptionist tab
-- Sends admin email notification
-
-### 5. 💰 Zero Infrastructure Cost
-- Runs entirely on free tiers
-- Google Sheets as database
-- Gmail for notifications
-- Streamlit Cloud for hosting
+### 4. After-hours receptionist
+- Checks office hours in the resort's time zone
+- During hours, gives the phone number and email
+- After hours, collects name, phone and question, saves them, and emails the admin
 
 ---
 
-## 📊 Google Sheets Structure
+## 🗄️ Database Schema
 
-| Tab | Columns | Purpose |
-|---|---|---|
-| **booking** | timestamp, pet_name, service_type, date, time, phone_number | Booking logs |
-| **FAQ** | intent_name, question, answer | FAQ database |
-| **receptionist** | timestamp, name, phone, query | After hours requests |
+| Table                   | Key columns                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------- |
+| `bookings`              | `pet_name`, `service_type`, `booking_date` (DATE), `booking_time`, `phone_number`, `status`, `created_at`, `updated_at` |
+| `faq`                   | `intent_name`, `question`, `answer`                                                          |
+| `receptionist_requests` | `customer_name`, `phone_number`, `query_text`, `created_at`                                  |
+
+See [`schema.sql`](schema.sql) for the full definitions, constraints and indexes. Row Level Security is enabled, so Supabase's public API can't read customer data. The app connects as the table owner.
+
+### Migration from Google Sheets
+The project originally stored its data in Google Sheets. [`migrate_sheets_to_postgres.py`](migrate_sheets_to_postgres.py) is a one-time script that copied all existing data into PostgreSQL: 40 bookings, 48 FAQ entries and 15 receptionist requests.
+- Shows a preview by default and only writes with `--commit`
+- Converts mixed date formats into a proper `DATE` column
+- Writes all tables in a single transaction
+- Won't run against tables that already contain data, which prevents double imports
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-```bash
-Python 3.11+
-Google Cloud Service Account
-Groq API Key
-Gmail Account with App Password
-```
+- Python 3.11+
+- A PostgreSQL database (Supabase or Neon free tier works)
+- A Groq API key
+- A Gmail account with an app password
 
-### Installation
-
+### Setup
 ```bash
-# Clone repo
 git clone https://github.com/nranjani/Conversational-AI-agent.git
 cd Conversational-AI-agent
 
-# Create virtual environment
 python -m venv venv
-venv\Scripts\activate  # Windows
-source venv/bin/activate  # Mac/Linux
+venv\Scripts\activate        # Windows
+source venv/bin/activate     # Mac/Linux
 
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Environment Variables
+Create the tables by running `schema.sql` in your database's SQL editor.
 
-Create `.env` file:
-
-```bash
+### Environment variables
+Create a `.env` file:
+```
 GROQ_API_KEY=your_groq_api_key
-SHEET_NAME=your_google_sheet_name
-GMAIL_USER=your_gmail
-GMAIL_PASSWORD=your_app_password
+DATABASE_URL=postgresql://user:password@host:5432/postgres
+EMAIL_ADDRESS=your_gmail
+EMAIL_PASSWORD=your_gmail_app_password
+ADMIN_EMAIL=where_notifications_go
 ```
 
-### Run Locally
+On Streamlit Cloud, add the same keys under **Settings → Secrets**. Put top-level keys such as `DATABASE_URL` above any `[section]` header. On Supabase, use the **Session pooler** connection string.
 
+### Run locally
 ```bash
 streamlit run app.py
 ```
@@ -164,55 +144,42 @@ streamlit run app.py
 
 ## 📁 Project Structure
 
+```
 Conversational-AI-agent/
-├── app.py                  # Streamlit UI
-├── agent.py                # Main AI agent
-├── requirements.txt        # Dependencies
-├── tools/
-│   ├── init.py
-│   ├── booking_tool.py     # Booking handler
-│   ├── email_tool.py       # Email notifications
-│   ├── faq_tool.py         # FAQ lookup
-│   └── receptionist_tool.py # Receptionist handler
-└── README.md
-
-
----
-
-## 💡 Use Cases
-
-| Query | Handler | Result |
-|---|---|---|
-| "I want to book my dog" | Groq LLM | Booking flow starts |
-| "What are your hours?" | FAQ Sheet | Hours returned |
-| "How much is king suite?" | FAQ Sheet | Price returned |
-| "Do you offer pickup?" | FAQ Sheet | Pickup info returned |
-| "Talk to receptionist" | Receptionist | Hours check |
-| "Do you accept exotic pets?" | Groq LLM | Intelligent answer |
+├── app.py                         # Streamlit chat UI
+├── agent.py                       # LLM calls + command routing
+├── schema.sql                     # PostgreSQL tables and indexes
+├── migrate_sheets_to_postgres.py  # One-time Sheets → Postgres migration
+├── requirements.txt
+└── tools/
+    ├── __init__.py
+    ├── db.py                      # Connection handling (commit / rollback)
+    ├── booking_tool.py            # Book, cancel, reschedule
+    ├── faq_tool.py                # Intent matching + FAQ lookup
+    ├── receptionist_tool.py       # Office-hours check + after-hours log
+    └── email_tool.py              # Admin notifications
+```
 
 ---
 
-## 📈 Business Impact
+## 💡 Example Conversations
 
-| Metric | Result |
-|---|---|
-| Query coverage | 100% |
-| Availability | 24/7 |
-| Missed bookings | Zero |
-| Infrastructure cost | Zero |
-| Response time | < 2 seconds |
+| Customer says                | Handled by        | Result                               |
+| ---------------------------- | ----------------- | ------------------------------------ |
+| "What are your hours?"       | FAQ table         | Hours returned instantly             |
+| "How much is the king suite?"| FAQ table         | Price returned                       |
+| "I want to book grooming"    | LLM → BOOK        | Details collected, row saved, admin emailed |
+| "Cancel Max's booking on Friday" | LLM → CANCEL  | Booking found and marked cancelled   |
+| "Talk to a person"           | Receptionist tool | Phone number, or after-hours details collected |
+| "Do you accept exotic pets?" | LLM               | Answered from the business context in the system prompt |
 
 ---
 
-## 🔮 Future Roadmap
+## ⚠️ Limitations and Next Steps
 
-- [ ] Amazon Connect for enterprise voice
-- [ ] Amazon Lex V2 for auto intent detection
-- [ ] AWS Lambda for serverless logic
-- [ ] Twilio WhatsApp integration
-- [ ] Power BI analytics dashboard
-- [ ] Salesforce CRM integration
-- [ ] Multi language support
+- **Command parsing uses regex.** The LLM's structured replies are parsed with regular expressions. Native tool calling (function calling) would be more reliable.
+- **No availability check.** Bookings are recorded without checking capacity, so staff confirm each one.
+- **Conversation memory is per session.** Chat history is lost when the page is refreshed.
+- **LLM answers outside the FAQ** are limited to the business facts in the system prompt, but they aren't verified against a source.
 
-
-
+**Roadmap:** switch to native tool calling, add automated tests for every intent, check capacity before booking, and add SMS or WhatsApp as a second channel.
