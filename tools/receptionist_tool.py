@@ -1,15 +1,9 @@
 # tools/receptionist_tool.py
 
-import gspread
-from google.oauth2.service_account import (
-    Credentials
-)
-from dotenv import load_dotenv
 from datetime import datetime
 import pytz
-import os
 
-load_dotenv()
+from tools.db import get_conn
 
 # ─── OFFICE HOURS ─────────────────────────
 # OFFICE_START_HOUR = 8
@@ -18,44 +12,6 @@ load_dotenv()
 OFFICE_START = 8
 OFFICE_END   = 17  # Updated to 5pm
 TIMEZONE     = "America/Chicago"
-
-def get_sheet():
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
-
-    try:
-        import streamlit as st
-        creds_dict = dict(
-            st.secrets["gcp_service_account"]
-        )
-        creds = (
-            Credentials.from_service_account_info(
-                creds_dict,
-                scopes=scope
-            )
-        )
-        sheet_name = st.secrets["SHEET_NAME"]
-    except Exception:
-        base_dir = os.path.dirname(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
-        )
-        creds_path = os.path.join(
-            base_dir, "credentials.json"
-        )
-        creds = (
-            Credentials.from_service_account_file(
-                creds_path,
-                scopes=scope
-            )
-        )
-        sheet_name = os.getenv("SHEET_NAME")
-
-    client = gspread.authorize(creds)
-    return client.open(sheet_name)
 
 def is_office_open() -> bool:
     tz  = pytz.timezone(TIMEZONE)
@@ -91,17 +47,16 @@ def log_receptionist_request(
     query_text: str
 ) -> str:
     try:
-        # Log to receptionist sheet
-        sheet = get_sheet()
-        tab   = sheet.worksheet("receptionist")
-        tab.append_row([
-            datetime.now().strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            customer_name,
-            phone_number,
-            query_text
-        ])
+        # Log to receptionist_requests table
+        with get_conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO receptionist_requests
+                    (customer_name, phone_number, query_text)
+                VALUES (%s, %s, %s)
+                """,
+                (customer_name, phone_number, query_text),
+            )
         print("✅ Receptionist request logged")
 
         # Send email notification

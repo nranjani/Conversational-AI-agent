@@ -1,72 +1,18 @@
 # tools/booking_tool.py
 
-import gspread
-from google.oauth2.service_account import (
-    Credentials
-)
-from datetime import datetime
-from dotenv import load_dotenv
-import os
 from datetime import datetime, timedelta
 import re
-load_dotenv()
 
-def get_credentials():
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
+from tools.db import get_conn
 
-    # Check if running on Streamlit Cloud
-    # by checking environment variable
-    is_cloud = os.path.exists(
-        "/mount/src"
-    )
-
-    if is_cloud:
-        # Running on Streamlit Cloud
-        import streamlit as st
-        creds = (
-            Credentials.from_service_account_info(
-                dict(
-                    st.secrets["gcp_service_account"]
-                ),
-                scopes=scope
-            )
-        )
-        sheet_name = st.secrets["SHEET_NAME"]
-    else:
-        # Running locally
-        base_dir = os.path.dirname(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
-        )
-        creds_path = os.path.join(
-            base_dir, "credentials.json"
-        )
-        creds = (
-            Credentials.from_service_account_file(
-                creds_path,
-                scopes=scope
-            )
-        )
-        sheet_name = os.getenv("SHEET_NAME")
-
-    return creds, sheet_name
-
-def get_sheet():
-    creds, sheet_name = get_credentials()
-    client = gspread.authorize(creds)
-    print(f"Connecting to: {sheet_name}")
-    return client.open(sheet_name)
-
+ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def format_date(date_str: str) -> str:
     """
     Convert natural language date
-    to formatted date string
+    to formatted date string (YYYY-MM-DD).
+    Returns the input unchanged if it can't be parsed.
     """
     date_str = date_str.strip().lower()
     today = datetime.now()
@@ -89,52 +35,41 @@ def format_date(date_str: str) -> str:
     }
     for day, day_num in days.items():
         if day in date_str:
-            current_day = today.weekday()
-            days_ahead = (
-                day_num - current_day
-            ) % 7
+            days_ahead = (day_num - today.weekday()) % 7
             if days_ahead == 0:
                 days_ahead = 7
-            target = (
-                today + timedelta(
-                    days=days_ahead
-                )
-            )
-            return target.strftime("%Y-%m-%d")
+            return (
+                today + timedelta(days=days_ahead)
+            ).strftime("%Y-%m-%d")
 
-    # Handle formats like "6th June"
-    # "June 6" "06/06/2025"
+    # Handle formats like "6th June", "June 6", "06/06/2025"
     formats = [
+        "%Y-%m-%d",      # 2025-06-06
         "%d %B %Y",      # 06 June 2025
         "%B %d %Y",      # June 06 2025
+        "%B %d, %Y",     # June 6, 2025
+        "%m/%d/%Y",      # 06/06/2025 (US first)
         "%d/%m/%Y",      # 06/06/2025
-        "%m/%d/%Y",      # 06/06/2025
-        "%Y-%m-%d",      # 2025-06-06
+        "%b %d, %Y",     # Apr 05, 2026
+        "%b %d %Y",      # Apr 05 2026
+        "%d %b %Y",      # 05 Apr 2026
         "%d %B",         # 6 June
         "%B %d",         # June 6
-        "%dth %B",       # 6th June
-        "%dst %B",       # 1st June
-        "%dnd %B",       # 2nd June
-        "%drd %B",       # 3rd June
+        "%b %d",         # Apr 5
+        "%d %b",         # 5 Apr
     ]
 
-    # Clean ordinal suffixes
+    # Clean ordinal suffixes (6th -> 6)
     clean_date = re.sub(
-        r'(\d+)(st|nd|rd|th)',
-        r'\1',
-        date_str.title()
-    )
+        r'(\d+)(st|nd|rd|th)', r'\1', date_str
+    ).title()
 
     for fmt in formats:
         try:
-            parsed = datetime.strptime(
-                clean_date, fmt
-            )
+            parsed = datetime.strptime(clean_date, fmt)
             # Add current year if missing
             if parsed.year == 1900:
-                parsed = parsed.replace(
-                    year=today.year
-                )
+                parsed = parsed.replace(year=today.year)
             return parsed.strftime("%Y-%m-%d")
         except ValueError:
             continue
@@ -142,12 +77,21 @@ def format_date(date_str: str) -> str:
     # Return as is if cannot parse
     return date_str
 
+
+def parse_date_or_none(date_str: str):
+    formatted = format_date(date_str)
+    return formatted if ISO_DATE.match(formatted) else None
+
+
+DATE_HELP = (
+    "Sorry, I couldn't understand that date. "
+    "Could you give it like 'June 6' or '2026-06-06'?"
+)
+
+
 def book_appointment(details: str) -> str:
     try:
-        parts = [
-            p.strip()
-            for p in details.split(",")
-        ]
+        parts = [p.strip() for p in details.split(",")]
 
         if len(parts) < 5:
             return (
@@ -159,28 +103,24 @@ def book_appointment(details: str) -> str:
 
         pet_name     = parts[0]
         service_type = parts[1]
-        date         = format_date(parts[2])
+        date         = parse_date_or_none(parts[2])
         time         = parts[3]
         phone_number = parts[4]
-        timestamp    = datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
 
-        print("Connecting to Google Sheets...")
-        sheet = get_sheet()
+        if not date:
+            return DATE_HELP
 
-        print("Getting booking tab...")
-        bookings_tab = sheet.worksheet("booking")
-
-        print("Writing booking to sheet...")
-        bookings_tab.append_row([
-            timestamp,
-            pet_name,
-            service_type,
-            date,
-            time,
-            phone_number
-        ])
+        with get_conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO bookings
+                    (pet_name, service_type, booking_date,
+                     booking_time, phone_number)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (pet_name, service_type, date,
+                 time, phone_number),
+            )
 
         print("✅ Booking logged!")
 
@@ -196,10 +136,26 @@ def book_appointment(details: str) -> str:
     except Exception as e:
         print(f"❌ Booking error: {e}")
         return (
-            f"Booking failed. "
-            f"Error Type: {type(e).__name__} "
-            f"Error: {str(e)}"
+            "Sorry, I couldn't save your booking. "
+            "Please call us at 903-207-4408!"
         )
+
+
+def _find_active_bookings(conn, phone_number, pet_name, date):
+    return conn.execute(
+        """
+        SELECT id, service_type, booking_date, booking_time
+        FROM bookings
+        WHERE phone_number = %s
+          AND lower(pet_name) = lower(%s)
+          AND booking_date = %s
+          AND status <> 'cancelled'
+        ORDER BY created_at
+        """,
+        (phone_number.strip(), pet_name.strip(), date),
+    ).fetchall()
+
+
 def cancel_booking(
     phone_number: str,
     pet_name: str,
@@ -207,113 +163,82 @@ def cancel_booking(
     service_type: str = None
 ) -> str:
     try:
-        sheet = get_sheet()
-        tab = sheet.worksheet("booking")
-        records = tab.get_all_records()
+        date = parse_date_or_none(booking_date)
+        if not date:
+            return DATE_HELP
 
-        # Find all matching rows
-        matches = []
-
-        for i, row in enumerate(records):
-            phone_match = str(
-                row.get("phone_number", "")
-            ).strip() == str(
-                phone_number
-            ).strip()
-
-            pet_match = str(
-                row.get("pet_name", "")
-            ).lower().strip() == str(
-                pet_name
-            ).lower().strip()
-
-            date_match = booking_date.lower() in (
-                str(row.get("date", "")).lower()
+        with get_conn() as conn:
+            matches = _find_active_bookings(
+                conn, phone_number, pet_name, date
             )
 
-            if phone_match and pet_match and date_match:
-                matches.append({
-                    "row_index": i + 2,
-                    "service": row.get(
-                        "service_type", ""
-                    ),
-                    "date": row.get("date", ""),
-                    "time": row.get("time", "")
-                })
+            # No match found
+            if not matches:
+                return (
+                    f"No booking found for "
+                    f"{pet_name} on {date} "
+                    f"with phone {phone_number}. "
+                    f"Please check and try again."
+                )
 
-        # No match found
-        if not matches:
-            return (
-                f"No booking found for "
-                f"{pet_name} on {booking_date} "
-                f"with phone {phone_number}. "
-                f"Please check and try again."
+            # Multiple services on same date
+            if len(matches) > 1 and not service_type:
+                service_list = "\n".join(
+                    f"{i+1}. {m['service_type']}"
+                    for i, m in enumerate(matches)
+                )
+                return (
+                    f"MULTIPLE_SERVICES: "
+                    f"I found {len(matches)} "
+                    f"bookings for {pet_name} "
+                    f"on {date}:\n"
+                    f"{service_list}\n\n"
+                    f"Which service would you "
+                    f"like to cancel?"
+                )
+
+            # Find target by service
+            if service_type:
+                target = next(
+                    (m for m in matches
+                     if service_type.lower()
+                     in m["service_type"].lower()),
+                    None,
+                )
+            else:
+                target = matches[0]
+
+            if not target:
+                return (
+                    f"Could not find "
+                    f"{service_type} booking "
+                    f"for {pet_name} on {date}."
+                )
+
+            # Cancel the booking
+            conn.execute(
+                """
+                UPDATE bookings
+                SET status = 'cancelled', updated_at = now()
+                WHERE id = %s
+                """,
+                (target["id"],),
             )
 
-        # Multiple services on same date
-        if len(matches) > 1 and not service_type:
-            service_list = "\n".join([
-                f"{i+1}. {m['service']}"
-                for i, m in enumerate(matches)
-            ])
-            return (
-                f"MULTIPLE_SERVICES: "
-                f"I found {len(matches)} "
-                f"bookings for {pet_name} "
-                f"on {booking_date}:\n"
-                f"{service_list}\n\n"
-                f"Which service would you "
-                f"like to cancel?"
-            )
-
-        # Find target by service
-        target = None
-        if service_type:
-            for match in matches:
-                if service_type.lower() in (
-                    match["service"].lower()
-                ):
-                    target = match
-                    break
-        else:
-            target = matches[0]
-
-        if not target:
-            return (
-                f"Could not find "
-                f"{service_type} booking "
-                f"for {pet_name} on "
-                f"{booking_date}."
-            )
-
-        # Cancel the booking
-        tab.update_cell(
-            target["row_index"], 7,
-            "cancelled"
-        )
-        tab.update_cell(
-            target["row_index"], 8,
-            datetime.now().strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-        )
-
-        # Send email
-        from tools.email_tool import (
-            send_email_notification
-        )
+        # Send email (after the DB change is committed)
+        from tools.email_tool import send_email_notification
         send_email_notification(
             f"Booking Cancelled\n\n"
             f"Pet: {pet_name}\n"
-            f"Service: {target['service']}\n"
-            f"Date: {booking_date}\n"
+            f"Service: {target['service_type']}\n"
+            f"Date: {date}\n"
             f"Phone: {phone_number}"
         )
 
         return (
             f"Your booking for {pet_name} "
-            f"({target['service']} on "
-            f"{booking_date}) has been "
+            f"({target['service_type']} on "
+            f"{date}) has been "
             f"cancelled successfully. "
             f"Would you like to reschedule "
             f"for another date?"
@@ -321,7 +246,10 @@ def cancel_booking(
 
     except Exception as e:
         print(f"❌ Cancel error: {e}")
-        return f"Cancellation failed: {str(e)}"
+        return (
+            "Sorry, I couldn't cancel that booking. "
+            "Please call us at 903-207-4408!"
+        )
 
 
 def rebook_appointment(
@@ -333,97 +261,65 @@ def rebook_appointment(
     service_type: str = None
 ) -> str:
     try:
-        sheet = get_sheet()
-        tab = sheet.worksheet("booking")
-        records = tab.get_all_records()
+        old = parse_date_or_none(old_date)
+        new = parse_date_or_none(new_date)
+        if not old or not new:
+            return DATE_HELP
 
-        found = False
-
-        for i, row in enumerate(records):
-            phone_match = str(
-                row.get("phone_number", "")
-            ).strip() == str(
-                phone_number
-            ).strip()
-
-            pet_match = str(
-                row.get("pet_name", "")
-            ).lower().strip() == str(
-                pet_name
-            ).lower().strip()
-
-            date_match = old_date.lower() in (
-                str(row.get("date", "")).lower()
+        with get_conn() as conn:
+            matches = _find_active_bookings(
+                conn, phone_number, pet_name, old
             )
-
-            service_match = True
             if service_type:
-                service_match = (
-                    service_type.lower() in
-                    str(row.get(
-                        "service_type", ""
-                    )).lower()
-                )
+                matches = [
+                    m for m in matches
+                    if service_type.lower()
+                    in m["service_type"].lower()
+                ]
 
-            if (
-                phone_match and
-                pet_match and
-                date_match and
-                service_match
-            ):
-                row_index = i + 2
-
-                # Update date
-                tab.update_cell(
-                    row_index, 4, new_date
-                )
-                # Update time
-                tab.update_cell(
-                    row_index, 5, new_time
-                )
-                # Update status
-                tab.update_cell(
-                    row_index, 7, "rebooked"
-                )
-                # Update timestamp
-                tab.update_cell(
-                    row_index, 8,
-                    datetime.now().strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
-                )
-                found = True
-
-                # Send email
-                from tools.email_tool import (
-                    send_email_notification
-                )
-                send_email_notification(
-                    f"Booking Rescheduled\n\n"
-                    f"Pet: {pet_name}\n"
-                    f"Service: "
-                    f"{row.get('service_type')}\n"
-                    f"Old Date: {old_date}\n"
-                    f"New Date: {new_date}\n"
-                    f"New Time: {new_time}\n"
-                    f"Phone: {phone_number}"
-                )
-
+            if not matches:
                 return (
-                    f"Your booking for "
-                    f"{pet_name} has been "
-                    f"rescheduled to "
-                    f"{new_date} at {new_time}. "
-                    f"See you then!"
+                    f"Could not find booking "
+                    f"for {pet_name} on {old}. "
+                    f"Please check and try again."
                 )
 
-        if not found:
-            return (
-                f"Could not find booking "
-                f"for {pet_name} on {old_date}. "
-                f"Please check and try again."
+            target = matches[0]
+            conn.execute(
+                """
+                UPDATE bookings
+                SET booking_date = %s,
+                    booking_time = %s,
+                    status       = 'rebooked',
+                    updated_at   = now()
+                WHERE id = %s
+                """,
+                (new, new_time, target["id"]),
             )
+
+        # Send email
+        from tools.email_tool import send_email_notification
+        send_email_notification(
+            f"Booking Rescheduled\n\n"
+            f"Pet: {pet_name}\n"
+            f"Service: {target['service_type']}\n"
+            f"Old Date: {old}\n"
+            f"New Date: {new}\n"
+            f"New Time: {new_time}\n"
+            f"Phone: {phone_number}"
+        )
+
+        return (
+            f"Your booking for "
+            f"{pet_name} has been "
+            f"rescheduled to "
+            f"{new} at {new_time}. "
+            f"See you then!"
+        )
 
     except Exception as e:
         print(f"❌ Rebook error: {e}")
-        return f"Rebooking failed: {str(e)}"   
+        return (
+            "Sorry, I couldn't reschedule that booking. "
+            "Please call us at 903-207-4408!"
+        )

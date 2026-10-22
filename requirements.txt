@@ -2,6 +2,7 @@ langchain
 langchain-groq
 langchain-community
 openai
+psycopg[binary]
 httpx
 gspread
 google-auth

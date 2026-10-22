@@ -1,15 +1,9 @@
 # tools/faq_tool.py
 
-import gspread
 import re
-from google.oauth2.service_account import (
-    Credentials
-)
-from dotenv import load_dotenv
-import os
-import streamlit as st
+import time
 
-load_dotenv()
+from tools.db import get_conn
 
 # ─── INTENT KEYWORDS ─────────────────────
 INTENT_KEYWORDS = {
@@ -115,45 +109,29 @@ def fix_prices(text: str) -> str:
         text
     )
     return text
-# ─── GET SHEET ───────────────────────────
-def get_sheet():
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
+# ─── LOAD FAQ ROWS ───────────────────────
+# Cached for 5 minutes so each message doesn't hit the DB,
+# but edits to the faq table still show up quickly.
+_FAQ_CACHE = {"rows": None, "loaded_at": 0.0}
+FAQ_CACHE_SECONDS = 300
 
-    is_cloud = os.path.exists("/mount/src")
 
-    if is_cloud:
-        import streamlit as st
-        creds = (
-            Credentials.from_service_account_info(
-                dict(
-                    st.secrets["gcp_service_account"]
-                ),
-                scopes=scope
-            )
-        )
-        sheet_name = st.secrets["SHEET_NAME"]
-    else:
-        base_dir = os.path.dirname(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
-        )
-        creds_path = os.path.join(
-            base_dir, "credentials.json"
-        )
-        creds = (
-            Credentials.from_service_account_file(
-                creds_path,
-                scopes=scope
-            )
-        )
-        sheet_name = os.getenv("SHEET_NAME")
+def load_faq_rows():
+    now = time.time()
+    if (
+        _FAQ_CACHE["rows"] is not None
+        and now - _FAQ_CACHE["loaded_at"] < FAQ_CACHE_SECONDS
+    ):
+        return _FAQ_CACHE["rows"]
 
-    client = gspread.authorize(creds)
-    return client.open(sheet_name)
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT intent_name, question, answer FROM faq ORDER BY id"
+        ).fetchall()
+
+    _FAQ_CACHE["rows"] = rows
+    _FAQ_CACHE["loaded_at"] = now
+    return rows
 # ─── GET INTENT ──────────────────────────
 def get_intent(question: str) -> str:
     question_lower = question.lower().strip()
@@ -172,36 +150,7 @@ def get_intent(question: str) -> str:
 # ─── ANSWER FAQ ──────────────────────────
 def answer_faq(question: str) -> str:
     try:
-        scope = [
-            "https://spreadsheets.google.com/feeds",
-            "https://www.googleapis.com/auth/drive"
-        ]
-
-        base_dir = os.path.dirname(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
-        )
-        creds_path = os.path.join(
-            base_dir, "credentials.json"
-        )
-
-        creds = (
-            Credentials.from_service_account_file(
-                creds_path,
-                scopes=scope
-            )
-        )
-
-        client  = gspread.authorize(creds)
-        sheet   = client.open
-        try:
-             sheet_name = st.secrets["SHEET_NAME"]
-        except Exception:
-             sheet_name = os.getenv("SHEET_NAME")
-              
-        faq_tab  = sheet.worksheet("FAQ")
-        faq_data = faq_tab.get_all_records()
+        faq_data = load_faq_rows()
 
         question_lower = question.lower()
 
