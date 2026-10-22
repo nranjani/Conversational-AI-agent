@@ -1,0 +1,28 @@
+# render.yaml — Render blueprint for the website chat API
+# Render dashboard → New → Blueprint → pick this repo and the website-widget branch.
+
+services:
+  - type: web
+    name: pawconnect-api
+    runtime: python
+    branch: website-widget
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn web_api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      # Secrets: Render asks you to fill these in during setup
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: EMAIL_ADDRESS
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
