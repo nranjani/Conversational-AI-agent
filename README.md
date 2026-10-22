@@ -92,13 +92,6 @@ The LLM never writes to the database directly. It replies with a structured comm
 
 See [`schema.sql`](schema.sql) for the full definitions, constraints and indexes. Row Level Security is enabled, so Supabase's public API can't read customer data. The app connects as the table owner.
 
-### Migration from Google Sheets
-The project originally stored its data in Google Sheets. [`migrate_sheets_to_postgres.py`](migrate_sheets_to_postgres.py) is a one-time script that copied all existing data into PostgreSQL: 40 bookings, 48 FAQ entries and 15 receptionist requests.
-- Shows a preview by default and only writes with `--commit`
-- Converts mixed date formats into a proper `DATE` column
-- Writes all tables in a single transaction
-- Won't run against tables that already contain data, which prevents double imports
-
 ---
 
 ## 🚀 Getting Started
